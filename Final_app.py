@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
@@ -9,9 +10,15 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 import string
 import toml
 
-# Download required NLTK data 
-nltk.download('vader_lexicon', quiet=True)
-nltk.download('punkt', quiet=True)
+# Set NLTK data path to the current directory
+nltk_data_dir = os.path.join(os.getcwd(), 'nltk_data')
+if not os.path.exists(nltk_data_dir):
+    os.makedirs(nltk_data_dir)
+nltk.data.path.append(nltk_data_dir)
+
+# Download required NLTK data (only need to run once)
+nltk.download('vader_lexicon', quiet=True, download_dir=nltk_data_dir)
+nltk.download('punkt', quiet=True, download_dir=nltk_data_dir)
 
 # Load API key from .streamlit/config.toml
 config = toml.load(".streamlit/config.toml")
