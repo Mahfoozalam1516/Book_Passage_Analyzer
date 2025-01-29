@@ -9,6 +9,10 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 import string
 import toml
 
+# Download required NLTK data 
+nltk.download('vader_lexicon', quiet=True)
+nltk.download('punkt', quiet=True)
+
 # Load API key from .streamlit/config.toml
 config = toml.load(".streamlit/config.toml")
 api_key = config['general']['api_key']
