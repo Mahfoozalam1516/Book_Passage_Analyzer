@@ -16,10 +16,6 @@ if not os.path.exists(nltk_data_dir):
     os.makedirs(nltk_data_dir)
 nltk.data.path.append(nltk_data_dir)
 
-# Download required NLTK data (only need to run once)
-nltk.download('vader_lexicon', quiet=True, download_dir=nltk_data_dir)
-nltk.download('punkt', quiet=True, download_dir=nltk_data_dir)
-
 # Load API key from .streamlit/config.toml
 config = toml.load(".streamlit/config.toml")
 api_key = config['general']['api_key']
