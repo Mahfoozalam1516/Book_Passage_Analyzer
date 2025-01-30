@@ -5,16 +5,17 @@ from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
 import requests
 import nltk
-from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.tokenize import word_tokenize
 from nltk.sentiment import SentimentIntensityAnalyzer
 import string
 import toml
 
-# Set NLTK data path to the current directory
-nltk_data_dir = os.path.join(os.getcwd(), 'nltk_data')
-if not os.path.exists(nltk_data_dir):
-    os.makedirs(nltk_data_dir)
-nltk.data.path.append(nltk_data_dir)
+# Set the NLTK_DATA environment variable to the local nltk_data folder
+os.environ['NLTK_DATA'] = './nltk_data'  # Adjust the path as necessary
+
+# Download required NLTK data 
+nltk.download('vader_lexicon', quiet=True)
+nltk.download('punkt', quiet=True)
 
 # Load API key from .streamlit/config.toml
 config = toml.load(".streamlit/config.toml")
