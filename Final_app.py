@@ -1,12 +1,10 @@
-import os
 import streamlit as st
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
 import requests
 import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.sentiment import SentimentIntensityAnalyzer
 import string
 import toml
@@ -38,14 +36,12 @@ def download_nltk_data():
 # Call the download function
 download_nltk_data()
 
-# Load API key from config.toml
-def load_api_key():
-    config = toml.load('.streamlit/config.toml')
-    return config['general']['api_key']
 
-# Linking to Google Books API
+# Load API key from .streamlit/config.toml
+config = toml.load(".streamlit/config.toml")
+api_key = config['general']['api_key']
+
 def search_books(passage):
-    api_key = load_api_key()
     url = "https://www.googleapis.com/books/v1/volumes"
     params = {
         'q': passage,
@@ -58,21 +54,13 @@ def search_books(passage):
         books = response.json()
         return books
     else:
-        st.error(f"Error: {response.status_code}")
+        st.error("Error: " + str(response.status_code))
         return None
-    
-# Counts total number of words in the passage
+
 def count_words(passage):
     words = word_tokenize(passage)
     return len([word for word in words if word not in string.punctuation])
 
-# Counts total number of words without considering stopwords
-def count_words_without_stopwords(passage):
-    stop_words = set(stopwords.words('english'))
-    words = word_tokenize(passage)
-    return len([word for word in words if word.lower() not in stop_words and word not in string.punctuation])
-
-# Emotion analysis based on compound score
 def analyze_emotion(passage):
     sia = SentimentIntensityAnalyzer()
     scores = sia.polarity_scores(passage)
@@ -87,65 +75,75 @@ def analyze_emotion(passage):
         return 'surprise'
     elif scores['neg'] > scores['pos']:
         return 'anger'
-    elif scores['neg'] > 0.5:  # Threshold for disgust
+    elif scores['neg'] > 0.1:  # Disgust threshold
         return 'disgust'
-    elif scores['pos'] < 0.1 and scores['neg'] > 0.1:  # Threshold for fear
+    elif scores['pos'] < 0.1:  # Fear threshold
         return 'fear'
     else:
         return 'neutral'
-    
-# Summarizing the passage using LSA
-def summarize_with_lsa(passage):
+
+def summarize_with_lsa(passage, num_sentences):
     parser = PlaintextParser.from_string(passage, Tokenizer("english"))
     summarizer = LsaSummarizer()
-    summary = summarizer(parser.document, 3)  # Summarize to 3 sentences
+    summary = summarizer(parser.document, num_sentences)  # Summarize to specified number of sentences
     return ' '.join(str(sentence) for sentence in summary)
 
-# Main function to analyze the text and display results
-def analyze_text(passage):
-    """Main function to analyze the text and return results"""
-    results = []
+def analyze_text(passage, num_sentences):
+    """Main function to analyze the text and print results"""
+    st.write("=== Text Analysis Results ===\n")
     
     # 1. Word Count
     total_words = count_words(passage)
-    total_words_no_stopwords = count_words_without_stopwords(passage)
+    st.markdown(f"""
+    <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <h4 style="margin: 0;">Total number of words:</h4>
+        <p style="margin: 0;">{total_words}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-    results.append(f"Total number of words: {total_words}")
-    results.append(f"Total number of words (without stopwords): {total_words_no_stopwords}")
-    
     # 2. Emotional Analysis
     emotion = analyze_emotion(passage)
-    results.append(f"Predominant emotion: {emotion}\n")
+    st.markdown(f"""
+    <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <h4 style="margin: 0;">Predominant emotion:</h4>
+        <p style="margin: 0;">{emotion}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     # 3. Book Search
-    results.append("Possible books the passage might be from:")
+    st.markdown("<h4>Possible books the passage might be from:</h4>", unsafe_allow_html=True)
     books = search_books(passage)
     if books:
-        for item in books.get('items', [])[:3]:  # To get the first 3 possible books
+        for item in books.get('items', [])[:3]:
             title = item['volumeInfo'].get('title', 'No title found')
             authors = item['volumeInfo'].get('authors', ['No authors found'])
-            results.append(f"- Title: {title}")
-            results.append(f"  Authors: {', '.join(authors)}\n")
-    
+            st.markdown(f"""
+    <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <h4 style="margin: 0;">{title}</h4>
+        <p style="margin: 0; color: gray;">Authors: {', '.join(authors)}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     # 4. Summary using LSA
-    lsa_summary = summarize_with_lsa(passage)
-    results.append(f"Summary:\n{lsa_summary}\n")
-    
-    return results
+    lsa_summary = summarize_with_lsa(passage, num_sentences)
+    st.markdown(f"""
+    <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <h4 style="margin: 0;">Summary:</h4>
+        <p style="margin: 0;">{lsa_summary}</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Streamlit app
-def main():
-    st.title("Text Analysis App")
-    
-    passage = st.text_area("Enter the passage for analysis:")
-    
-    if st.button("Analyze"):
-        if passage:
-            results = analyze_text(passage)
-            for result in results:
-                st.write(result)
-        else:
-            st.warning("Please provide the passage.")
 
-if __name__ == "__main__":
-    main()
+# Streamlit UI
+st.title("Text Analysis App")
+
+passage = st.text_area("Enter the text you want to analyze:")
+
+# Option to select number of summary sentences
+num_sentences = st.slider("Select number of summary sentences:", min_value=1, max_value=5, value=2)
+
+if st.button("Analyze"):
+    if passage:
+        analyze_text(passage, num_sentences)
+    else:
+        st.error("Please provide text.")
