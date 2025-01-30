@@ -9,6 +9,7 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment import SentimentIntensityAnalyzer
 import string
+import toml
 
 # NLTK data path configuration
 NLTK_DATA_PATH = os.path.join(os.path.dirname(__file__), 'nltk_data')
@@ -20,31 +21,31 @@ nltk.data.path.append(NLTK_DATA_PATH)
 def download_nltk_data():
     """Download required NLTK data to local directory"""
     try:
-        # Check if punkt is already downloaded
         nltk.data.find('tokenizers/punkt')
     except LookupError:
-        # Download punkt to custom directory
         nltk.download('punkt', download_dir=NLTK_DATA_PATH)
 
     try:
-        # Check if vader_lexicon is already downloaded
         nltk.data.find('sentiment/vader_lexicon.zip')
     except LookupError:
-        # Download vader_lexicon to custom directory
         nltk.download('vader_lexicon', download_dir=NLTK_DATA_PATH)
 
     try:
-        # Check if stopwords is already downloaded
         nltk.data.find('corpora/stopwords.zip')
     except LookupError:
-        # Download stopwords to custom directory
         nltk.download('stopwords', download_dir=NLTK_DATA_PATH)
 
 # Call the download function
 download_nltk_data()
 
+# Load API key from config.toml
+def load_api_key():
+    config = toml.load('.streamlit/config.toml')
+    return config['general']['api_key']
+
 # Linking to Google Books API
-def search_books(passage, api_key):
+def search_books(passage):
+    api_key = load_api_key()
     url = "https://www.googleapis.com/books/v1/volumes"
     params = {
         'q': passage,
@@ -101,7 +102,7 @@ def summarize_with_lsa(passage):
     return ' '.join(str(sentence) for sentence in summary)
 
 # Main function to analyze the text and display results
-def analyze_text(passage, api_key):
+def analyze_text(passage):
     """Main function to analyze the text and return results"""
     results = []
     
@@ -118,7 +119,7 @@ def analyze_text(passage, api_key):
 
     # 3. Book Search
     results.append("Possible books the passage might be from:")
-    books = search_books(passage, api_key)
+    books = search_books(passage)
     if books:
         for item in books.get('items', [])[:3]:  # To get the first 3 possible books
             title = item['volumeInfo'].get('title', 'No title found')
@@ -136,16 +137,15 @@ def analyze_text(passage, api_key):
 def main():
     st.title("Text Analysis App")
     
-    api_key = st.text_input("Enter your Google Books API Key:")
     passage = st.text_area("Enter the passage for analysis:")
     
     if st.button("Analyze"):
-        if api_key and passage:
-            results = analyze_text(passage, api_key)
+        if passage:
+            results = analyze_text(passage)
             for result in results:
                 st.write(result)
         else:
-            st.warning("Please provide both the API key and the passage.")
+            st.warning("Please provide the passage.")
 
 if __name__ == "__main__":
     main()
