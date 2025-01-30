@@ -8,12 +8,19 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment import SentimentIntensityAnalyzer
 import string
+import toml
+
+# Load API key from config.toml
+config = toml.load(".streamlit/config.toml")
+api_key = config['general']['api_key']
 
 # Ensure NLTK data is available
-nltk.data.path.append('./nltk_data')  # Adjust the path to your nltk_data folder
+nltk.download('vader_lexicon', quiet=True)
+nltk.download('punkt', quiet=True)
+nltk.download('stopwords', quiet=True)
 
 # Linking to Google Books API
-def search_books(passage, api_key):
+def search_books(passage):
     url = "https://www.googleapis.com/books/v1/volumes"
     params = {
         'q': passage,
@@ -70,43 +77,50 @@ def summarize_with_lsa(passage):
     return ' '.join(str(sentence) for sentence in summary)
 
 # Main function to analyze the text and display results
-def analyze_text(passage, api_key):
-    """Main function to analyze the text and display results in Streamlit"""
-    st.title("Text Analysis Results")
+def analyze_text(passage):
+    """Main function to analyze the text and return results"""
+    results = []
     
     # 1. Word Count
     total_words = count_words(passage)
     total_words_no_stopwords = count_words_without_stopwords(passage)
 
-    st.write(f"Total number of words: {total_words}")
-    st.write(f"Total number of words (without stopwords): {total_words_no_stopwords}")
+    results.append(f"Total number of words: {total_words}")
+    results.append(f"Total number of words (without stopwords): {total_words_no_stopwords}")
     
     # 2. Emotional Analysis
     emotion = analyze_emotion(passage)
-    st.write(f"Predominant emotion: {emotion}\n")
+    results.append(f"Predominant emotion: {emotion}\n")
 
     # 3. Book Search
-    st.write("Possible books the passage might be from:")
-    books = search_books(passage, api_key)
+    results.append("Possible books the passage might be from:")
+    books = search_books(passage)
     if books:
         for item in books.get('items', [])[:3]:  # To get the first 3 possible books
             title = item['volumeInfo'].get('title', 'No title found')
             authors = item['volumeInfo'].get('authors', ['No authors found'])
-            st.write(f"- Title: {title}")
-            st.write(f"  Authors: {', '.join(authors)}\n")
+            results.append(f"- Title: {title}")
+            results.append(f"  Authors: {', '.join(authors)}\n")
     
     # 4. Summary using LSA
     lsa_summary = summarize_with_lsa(passage)
-    st.write(f"Summary:\n{lsa_summary}\n")
-
-# Streamlit UI
-if __name__ == "__main__":
-    st.sidebar.header("Input Passage")
-    passage = st.sidebar.text_area("Enter your passage here:", height=200)
-    api_key = st.sidebar.text_input("Enter your Google Books API key:")
+    results.append(f"Summary:\n{lsa_summary}\n")
     
-    if st.sidebar.button("Analyze"):
-        if passage and api_key:
-            analyze_text(passage, api_key)
+    return results
+
+# Streamlit app
+def main():
+    st.title("Text Analysis App")
+    
+    passage = st.text_area("Enter the passage for analysis:")
+    
+    if st.button("Analyze"):
+        if passage:
+            results = analyze_text(passage)
+            for result in results:
+                st.write(result)
         else:
-            st.warning("Please enter both a passage and an API key.")
+            st.warning("Please provide the passage.")
+
+if __name__ == "__main__":
+    main()
